@@ -348,7 +348,7 @@
   function luckChart(width) {
     const T = state.res.teams.slice().sort((a, b) => (b.luck - a.luck) || (a.rank - b.rank));
     const rowH = 30, top = 30;
-    const labW = Math.min(150, Math.max(104, width * 0.3)), valW = 46;
+    const labW = Math.min(200, Math.max(112, width * 0.36)), valW = 46;
     const x0 = labW + 8, x1 = width - valW - 10;
     const maxG = Math.max(1, ...T.map(t => t.g));
     const X = v => x0 + v / maxG * (x1 - x0);
@@ -363,10 +363,9 @@
       const y = top + i * rowH + rowH / 2 - 4;
       const act = t.w + 0.5 * t.t;
       const col = t.luck > 0.05 ? 'var(--s2)' : t.luck < -0.05 ? 'var(--s3)' : 'var(--grey)';
-      const name = t.name.length > 18 && width < 420 ? t.name.slice(0, 17) + '…' : t.name;
       g.push(`<g><title>${esc(t.name)}: ${f1(act)} wins, ${f1(t.expW)} expected</title>
 <rect x="0" y="${(y - rowH / 2).toFixed(1)}" width="${width}" height="${rowH}" fill="transparent"/>
-<text x="0" y="${(y + 5).toFixed(1)}" font-size="14" font-weight="600" fill="var(--ink)">${esc(name)}</text>
+<text x="0" y="${(y + 5).toFixed(1)}" font-size="14" font-weight="600" fill="var(--ink)" data-fit="${(labW - 10).toFixed(0)}"><tspan>${esc(t.name)}</tspan></text>
 <line x1="${X(t.expW).toFixed(1)}" y1="${y.toFixed(1)}" x2="${X(act).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${col}" stroke-width="4" stroke-linecap="round"/>
 <circle cx="${X(t.expW).toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
 <circle cx="${X(act).toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="var(--ink)" stroke="var(--bg)" stroke-width="2"/>
@@ -408,8 +407,7 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
     });
     T.forEach(t => {
       const hl = !!colorOf[t.id];
-      const name = t.name.length > 20 && labW < 150 ? t.name.slice(0, 19) + '…' : t.name;
-      g.push(`<text class="lab" data-team="${t.id}" tabindex="0" x="${(x1 + 14).toFixed(1)}" y="${(Y(t.rank) + 4.5).toFixed(1)}" font-size="13" font-weight="${hl ? 700 : 500}" fill="${hl ? 'var(--ink)' : 'var(--muted)'}">${esc(name)}</text>`);
+      g.push(`<text class="lab" data-team="${t.id}" tabindex="0" x="${(x1 + 14).toFixed(1)}" y="${(Y(t.rank) + 4.5).toFixed(1)}" font-size="13" font-weight="${hl ? 700 : 500}" fill="${hl ? 'var(--ink)' : 'var(--muted)'}" data-fit="${(width - x1 - 16).toFixed(0)}"><title>${esc(t.name)}</title><tspan>${esc(t.name)}</tspan></text>`);
     });
     return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" role="img" aria-label="Power ranking for each team, week by week">${g.join('')}</svg>`;
   }
@@ -436,12 +434,30 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
     host.addEventListener('focusout', () => focus(pinned));
   }
 
+  // Trim chart labels that would run into the plot, measured in the real font. Full names stay in the tooltip.
+  function fitLabels(host) {
+    $$('text[data-fit]', host).forEach(el => {
+      const max = Number(el.dataset.fit), span = $('tspan', el);
+      if (!span || !max || el.getComputedTextLength() <= max) return;
+      const full = span.textContent;
+      let lo = 1, hi = full.length - 1;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        span.textContent = full.slice(0, mid).trimEnd() + '\u2026';
+        if (el.getComputedTextLength() <= max) lo = mid; else hi = mid - 1;
+      }
+      span.textContent = full.slice(0, lo).trimEnd() + '\u2026';
+    });
+  }
+
   function renderCharts() {
     const r = state.res;
     const lw = $('#luck-chart').clientWidth || 360;
     $('#luck-chart').innerHTML = luckChart(Math.min(lw, 620));
+    fitLabels($('#luck-chart'));
     const bw = $('#bump-chart').clientWidth || 360;
     $('#bump-chart').innerHTML = bumpChart(Math.min(bw, 620));
+    fitLabels($('#bump-chart'));
     $('#move-sub').textContent = `Where every team ranked after each week, using the current formula. Highlighted: ${r.storylines.map(s => s.role.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ', and $1')}.`;
     $('#move-key').innerHTML = r.storylines.map((s, i) => `<span><i class="sw" style="background:${ROLE_COLORS[i]}"></i>${esc(r.byId[s.id].name)} <span class="dim">(${esc(s.role.toLowerCase())})</span></span>`).join('') + '<span><i class="sw" style="background:var(--grey)"></i>Everyone else</span>';
   }
@@ -516,6 +532,7 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
     compute();
     renderWeekSelect();
     renderAll(false);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => renderCharts());
     $('#week').addEventListener('change', e => {
       state.week = Number(e.target.value);
       state.open = {};
