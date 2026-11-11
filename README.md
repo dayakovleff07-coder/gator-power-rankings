@@ -42,6 +42,15 @@ The other route is for the league manager to make the league viewable to the pub
 
 A GitHub Pages site is public to anyone who has the link, even when the league is private. The page tells search engines not to index it. It shows team names, scores and owner first names with a last initial. To leave owner names out, add a repository variable `OWNER_NAMES` set to `off`.
 
+### Hosting on Netlify instead
+
+`netlify.toml` already tells Netlify how to build the site (`node scripts/fetch-league.mjs`, publish `site`).
+
+1. In Netlify: **Add new project > Import an existing project > GitHub**, pick `gator-power-rankings`, and deploy. The build settings fill in from `netlify.toml`.
+2. In the new project: **Project configuration > Environment variables**, add `ESPN_S2` and `SWID` (same values as the GitHub secrets). Then **Deploys > Trigger deploy**.
+3. For the daily refresh: **Project configuration > Build & deploy > Continuous deployment > Build hooks > Add build hook** (branch `main`). Copy the URL into a GitHub secret named `NETLIFY_BUILD_HOOK`. The daily workflow then asks Netlify to rebuild every morning.
+4. To stop GitHub Pages: add a GitHub repository variable `PAGES` set to `off`, then unpublish the site under **Settings > Pages**. Once Pages is off, GitHub no longer needs the `ESPN_S2` and `SWID` secrets and they can be deleted there.
+
 ### Next season
 
 The season year is picked automatically (July onward is the new season). To pin it, add a repository variable `SEASON`, e.g. `2027`. A different league goes in a variable named `LEAGUE_ID`.

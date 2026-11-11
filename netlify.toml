@@ -1,0 +1,18 @@
+# Netlify build: pull the league from ESPN, then publish the site folder.
+# Set ESPN_S2 and SWID in Netlify's environment variables (private league).
+[build]
+  command = "node scripts/fetch-league.mjs"
+  publish = "site"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "no-cache"

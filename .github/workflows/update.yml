@@ -19,7 +19,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # GitHub Pages hosting. Set the repository variable PAGES to "off" to stop it (e.g. after moving to Netlify).
   build:
+    if: ${{ vars.PAGES != 'off' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +47,7 @@ jobs:
 
   deploy:
     needs: build
+    if: ${{ vars.PAGES != 'off' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -52,3 +55,17 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Netlify hosting. Netlify rebuilds on every push by itself; this keeps the daily refresh going.
+  # Does nothing until the NETLIFY_BUILD_HOOK secret is set.
+  netlify:
+    if: ${{ github.event_name != 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask Netlify to rebuild with fresh ESPN data
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "No NETLIFY_BUILD_HOOK secret set, skipping."; exit 0; fi
+          curl -fsS -X POST -d '{}' "$HOOK?trigger_title=Daily+ESPN+refresh"
+          echo "Netlify build triggered."
