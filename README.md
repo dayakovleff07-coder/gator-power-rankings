@@ -1,6 +1,6 @@
 # Gator League Power Rankings
 
-A static site that ranks the Gator League (ESPN Fantasy Football league `1965180370`) every week. A small job pulls the league from ESPN, and the page does the math in the browser. Anyone can adjust the formula on the page and watch the order change.
+A static site that ranks the Gator League (ESPN Fantasy Football league `1965180370`) every week. A small job pulls the league from ESPN, and the page does the math in the browser using one league formula.
 
 ```
 site/
@@ -57,37 +57,34 @@ The season year is picked automatically (July onward is the new season). To pin 
 
 ## How the rankings work
 
-Each team gets eight factors, every one oriented so higher is better:
+**Power score = 80% points per game + 20% recent form (average of the last 3 weeks).** Each factor is scaled 0 to 100 across the league (lowest team 0, highest 100), weighted, and added up. Ties on the displayed score go to total points. Tiers break at the biggest gaps in the score. Movement compares against the same formula one week earlier.
 
-| Factor | What it measures |
+Why those two: in a head-to-head league your score is the only thing you control. Week-to-week scoring is noisy, so the season average is the steadiest read on how good a team is, and recent form catches teams that changed through trades, waivers and injuries. The weights were chosen by testing every factor against thousands of seasons simulated from this league's own scoring (9 weeks of 2026 data) and checking which formula identified each team's true strength best. The other factors are still on the page as context, but they made the ranking worse:
+
+| Factor | Why it is not in the score |
 |---|---|
-| All-play record | Record if you played every team every week |
-| Points per game | Average points scored |
-| Recent form | Average score over the last N weeks (N is adjustable) |
-| Win percentage | Actual head-to-head record |
-| Top-half finishes | Weeks you scored above the league median |
-| Point differential | Average margin per game |
-| Consistency | Lower week-to-week swing (standard deviation) ranks higher |
-| Schedule strength | Average scoring of the opponents you faced |
-
-Each factor is scaled 0 to 100 across the league (or by rank order, if you switch the scaling), weighted, and added up. Ties on the displayed score go to total points. Tiers break at the biggest gaps in the score. Movement compares against the same formula one week earlier, so changing the formula never creates fake movement.
+| Win percentage | Wins depend on who you happened to play; that schedule luck does not carry forward |
+| All-play record | A coarser version of points per game (it ignores margins); slightly worse in testing |
+| Top-half finishes | An even coarser version of all-play |
+| Point differential | Points against is your opponents' scoring, which you do not control |
+| Consistency | This league shows no real difference in how steady teams are, so it measures noise |
+| Schedule strength | Facing strong opponents does not make your own team better |
 
 Luck is actual wins minus expected wins, where expected wins are the all-play win rate times games played.
 
 The weekly write-ups and headline are generated from the numbers. To write your own for a team, add it to `notes` in `GATOR_CONFIG`.
 
-## Changing the defaults
+## Changing the formula
 
-Everything the league sees by default is in `GATOR_CONFIG` near the top of `site/index.html`:
+The formula lives in `GATOR_CONFIG` near the top of `site/index.html`. Visitors cannot change it.
 
-- `presets.default.weights`: the league formula. Weights are relative; the page turns them into percentages.
-- Other `presets`: the quick picks shown in the formula panel. Add, rename, or remove freely.
+- `weights`: relative weights by factor (`allPlay`, `pointsFor`, `recent`, `winPct`, `median`, `diff`, `consistency`, `schedule`). The page turns them into percentages.
 - `recentWeeks`: the window for recent form.
-- `scale`: `'range'` (lowest team 0, highest 100) or `'rank'` (rank order, less sensitive to one huge week).
+- `scale`: `'range'` (lowest team 0, highest 100) or `'rank'` (rank order).
 - `tierNames`: custom tier names by tier count, e.g. `{ 4: ['Apex Predators', 'Lurking', 'Treading Water', 'Bottom Feeders'] }`.
 - `notes`: commissioner write-ups by team name, replacing the automatic ones.
 
-Changes a visitor makes in the formula panel are saved only in their own browser.
+Push the change to `main` and the site redeploys.
 
 ## Run it locally
 

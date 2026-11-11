@@ -19,15 +19,15 @@ window.GATOR_CONFIG = {
   leagueId: 1965180370,
   dataUrl: 'data/league.json',
   timeZone: 'America/New_York',
-  defaultPreset: 'default',
+
+  // The league formula. Weights are relative and become percentages of the total.
+  // Chosen by testing every factor against thousands of seasons simulated from this league's
+  // own scoring: points per game plus recent form found the truly best team most reliably.
+  // Factors available: allPlay, pointsFor, recent, winPct, median, diff, consistency, schedule.
+  weights: { pointsFor: 80, recent: 20 },
   recentWeeks: 3,            // window for "Recent form"
-  scale: 'range',            // 'range' (min to max) or 'rank' (rank order)
-  presets: {
-    default: { label: 'League default', weights: { allPlay: 30, pointsFor: 20, recent: 20, winPct: 15, median: 5, diff: 5, consistency: 5, schedule: 0 } },
-    power:   { label: 'Pure power',     weights: { allPlay: 45, pointsFor: 30, recent: 15, winPct: 0,  median: 0, diff: 10, consistency: 0, schedule: 0 } },
-    results: { label: 'Results first',  weights: { allPlay: 20, pointsFor: 15, recent: 10, winPct: 40, median: 15, diff: 0, consistency: 0, schedule: 0 } },
-    hot:     { label: 'Hot hand',       weights: { allPlay: 20, pointsFor: 10, recent: 50, winPct: 15, median: 0, diff: 5, consistency: 0, schedule: 0 } }
-  },
+  scale: 'range',            // 'range' (lowest team 0, highest 100) or 'rank' (rank order)
+
   // Optional tier names by number of tiers, e.g. { 4: ['A', 'B', 'C', 'D'] }
   tierNames: null,
   // Optional commissioner write-ups that replace the automatic one, keyed by team name.
@@ -114,38 +114,8 @@ h1 { margin: 20px 0 0; font-stretch: 62%; font-weight: 900; font-size: clamp(72p
 .f-sum { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 15px; }
 .f-sum b { font-weight: 800; }
 .f-acts { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.badge { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 6px 10px; border: 1px solid var(--ink); }
-.badge.custom { background: var(--ink); color: var(--bg); }
-.btn { min-height: 44px; padding: 0 18px; background: var(--ink); color: var(--bg); border: 1px solid var(--ink); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; }
-.btn:hover { background: var(--accent); border-color: var(--accent); }
-.btn.ghost { background: transparent; color: var(--ink); }
-.btn.ghost:hover { background: var(--tint); color: var(--ink); border-color: var(--ink); }
-.panel { padding: 24px 0 8px; border-bottom: 1px solid var(--rule); }
-.presets { display: flex; flex-wrap: wrap; gap: 8px; }
-.presets button { min-height: 44px; padding: 0 16px; background: transparent; border: 1px solid var(--ink); font-size: 14px; font-weight: 700; cursor: pointer; }
-.presets button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px 40px; margin-top: 26px; }
-.sl-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.sl-top label { font-size: 16px; font-weight: 800; }
-.sl-top output { font-stretch: 75%; font-size: 24px; font-weight: 800; min-width: 3ch; text-align: right; }
-.sl-top output.zero { color: var(--muted); }
-.slider p { margin: 4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
-input[type=range] { width: 100%; margin: 10px 0 0; height: 28px; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
-input[type=range]::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(var(--accent), var(--accent)) 0 / var(--fill, 0%) 100% no-repeat, var(--track); }
-input[type=range]::-moz-range-track { height: 4px; background: var(--track); }
-input[type=range]::-moz-range-progress { height: 4px; background: var(--accent); }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -9px; background: var(--bg); border: 3px solid var(--ink); border-radius: 50%; }
-input[type=range]::-moz-range-thumb { width: 16px; height: 16px; background: var(--bg); border: 3px solid var(--ink); border-radius: 50%; }
-.opts { display: flex; flex-wrap: wrap; gap: 18px 40px; align-items: flex-end; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--rule); }
-.opt { display: flex; flex-direction: column; gap: 8px; }
-.seg { display: flex; }
-.seg label { min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; border: 1px solid var(--ink); margin-left: -1px; font-size: 14px; font-weight: 700; cursor: pointer; }
-.seg label:first-child { margin-left: 0; }
-.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.seg input:checked + span { color: #fff; }
-.seg label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
-.seg label:has(input:focus-visible) { outline: 3px solid var(--s2); outline-offset: 2px; }
-.fine { margin: 16px 0; font-size: 13px; color: var(--muted); }
+.btn { min-height: 44px; padding: 0 18px; background: transparent; color: var(--ink); border: 1px solid var(--ink); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; text-decoration: none; }
+.btn:hover { background: var(--tint); color: var(--ink); }
 
 /* the order */
 .o-head { padding-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 40px; }

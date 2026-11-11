@@ -10,15 +10,13 @@
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 
-  const presets = CFG.presets || { default: { label: 'League default', weights: { allPlay: 40, pointsFor: 30, recent: 20, winPct: 10 } } };
-  const defaultKey = presets[CFG.defaultPreset] ? CFG.defaultPreset : Object.keys(presets)[0];
-
+  // One league formula, set in GATOR_CONFIG. Visitors can't change it.
   const state = {
     league: null, res: null, week: null,
-    weights: Object.assign({}, presets[defaultKey].weights),
+    weights: Object.assign({}, CFG.weights || { pointsFor: 80, recent: 20 }),
     recentWeeks: CFG.recentWeeks || 3,
     scale: CFG.scale || 'range',
-    open: {}, panelOpen: false
+    open: {}
   };
 
   // ------------------------------------------------------------ utils
@@ -38,17 +36,6 @@
     raw.slice().sort((a, b) => (b.v - Math.floor(b.v)) - (a.v - Math.floor(a.v))).slice(0, 100 - used).forEach(r => { out[r.k]++; });
     return out;
   }
-  function presetMatch() {
-    const w = fullWeights(state.weights);
-    for (const k of Object.keys(presets)) {
-      const p = fullWeights(presets[k].weights);
-      if (FACTORS.every(f => p[f.key] === w[f.key])) return k;
-    }
-    return null;
-  }
-  function isLeagueDefault() {
-    return presetMatch() === defaultKey && state.recentWeeks === (CFG.recentWeeks || 3) && state.scale === (CFG.scale || 'range');
-  }
   function factorDesc(f) { return f.desc.replace('{n}', U.word(state.recentWeeks)); }
   function fmtDate(iso, withTime, short) {
     if (!iso) return '';
@@ -58,23 +45,6 @@
       : { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric', timeZone: CFG.timeZone || undefined };
     if (withTime) { o.hour = 'numeric'; o.minute = '2-digit'; o.timeZoneName = 'short'; }
     try { return d.toLocaleString('en-US', o); } catch (e) { return d.toDateString(); }
-  }
-
-  function load() {
-    try {
-      const s = JSON.parse(localStorage.getItem(STORE) || 'null');
-      if (s && s.weights) {
-        state.weights = fullWeights(s.weights);
-        if (s.recentWeeks) state.recentWeeks = Math.min(6, Math.max(1, Number(s.recentWeeks) || 3));
-        if (s.scale === 'rank' || s.scale === 'range') state.scale = s.scale;
-      }
-    } catch (e) { /* storage unavailable */ }
-  }
-  function save() {
-    try {
-      if (isLeagueDefault()) localStorage.removeItem(STORE);
-      else localStorage.setItem(STORE, JSON.stringify({ weights: state.weights, recentWeeks: state.recentWeeks, scale: state.scale }));
-    } catch (e) { /* storage unavailable */ }
   }
 
   function compute() {
@@ -164,25 +134,7 @@
       <h2 class="small-h" id="f-title">The formula</h2>
       <p class="f-sum" id="f-sum"></p>
     </div>
-    <div class="f-acts">
-      <span class="badge" id="f-badge"></span>
-      <button class="btn" type="button" id="f-toggle" aria-expanded="false" aria-controls="f-panel">Adjust the formula ${chev}</button>
-    </div>
-  </div>
-  <div class="panel" id="f-panel" hidden>
-    <div class="presets" role="group" aria-label="Presets" id="presets"></div>
-    <div class="sliders" id="sliders"></div>
-    <div class="opts">
-      <div class="opt"><label class="label" for="recent">Recent form window</label>
-        <select id="recent">${[2, 3, 4, 5, 6].map(n => `<option value="${n}">Last ${n} weeks</option>`).join('')}</select></div>
-      <div class="opt"><span class="label" id="scale-l">Scaling</span>
-        <div class="seg" role="radiogroup" aria-labelledby="scale-l">
-          <label><input type="radio" name="scale" value="range"><span>Spread, low to high</span></label>
-          <label><input type="radio" name="scale" value="rank"><span>Rank order</span></label>
-        </div></div>
-      <button class="btn ghost" type="button" id="reset">Reset to league default</button>
-    </div>
-    <p class="fine">Your changes stay on this device. Everyone else sees the league default.</p>
+    <a class="btn ghost" href="#method">How it works</a>
   </div>
 </section>
 
@@ -223,15 +175,6 @@
 
 <footer class="wrap"><div class="foot" id="foot"></div></footer>`;
 
-    $('#f-toggle').addEventListener('click', () => setPanel(!state.panelOpen));
-    $('#reset').addEventListener('click', () => {
-      state.weights = Object.assign({}, presets[defaultKey].weights);
-      state.recentWeeks = CFG.recentWeeks || 3;
-      state.scale = CFG.scale || 'range';
-      formulaChanged(true);
-    });
-    $('#recent').addEventListener('change', e => { state.recentWeeks = Number(e.target.value); formulaChanged(true); });
-    $$('input[name=scale]').forEach(r => r.addEventListener('change', e => { state.scale = e.target.value; formulaChanged(true); }));
     $('#rows').addEventListener('click', e => {
       const b = e.target.closest('.row-main');
       if (!b) return;
@@ -239,15 +182,6 @@
       state.open[id] = !state.open[id];
       toggleRow(b.closest('.row'), state.open[id]);
     });
-  }
-
-  function setPanel(open) {
-    state.panelOpen = open;
-    $('#f-panel').hidden = !open;
-    $('#f-toggle').setAttribute('aria-expanded', String(open));
-    $('#f-toggle').firstChild.nodeValue = open ? 'Close the formula ' : 'Adjust the formula ';
-    $('#f-toggle .chev').style.transform = open ? 'rotate(180deg)' : '';
-    if (open) renderControls();
   }
 
   // ------------------------------------------------------------ renders
@@ -287,47 +221,6 @@
     const items = FACTORS.filter(f => sh[f.key] > 0).sort((x, y) => sh[y.key] - sh[x.key])
       .map(f => `<span>${esc(f.short)} <b>${sh[f.key]}%</b></span>`);
     $('#f-sum').innerHTML = items.join('');
-    const m = presetMatch();
-    const label = isLeagueDefault() ? presets[defaultKey].label : (m && state.recentWeeks === (CFG.recentWeeks || 3) && state.scale === (CFG.scale || 'range')) ? presets[m].label : 'Custom';
-    const badge = $('#f-badge');
-    badge.textContent = label;
-    badge.classList.toggle('custom', !isLeagueDefault());
-  }
-
-  function renderControls() {
-    const sh = shares(state.weights);
-    const m = presetMatch();
-    $('#presets').innerHTML = Object.keys(presets).map(k =>
-      `<button type="button" data-preset="${esc(k)}" aria-pressed="${m === k}">${esc(presets[k].label)}</button>`).join('');
-    $$('#presets button').forEach(b => b.addEventListener('click', () => {
-      state.weights = Object.assign({}, presets[b.dataset.preset].weights);
-      formulaChanged(true);
-    }));
-    const full = fullWeights(state.weights);
-    if (!$('#sliders').children.length) {
-      $('#sliders').innerHTML = FACTORS.map(f => `
-<div class="slider">
-  <div class="sl-top"><label for="w-${f.key}">${esc(f.label)}</label><output id="o-${f.key}" for="w-${f.key}"></output></div>
-  <input type="range" id="w-${f.key}" min="0" max="50" step="5" data-key="${f.key}" aria-describedby="h-${f.key}">
-  <p id="h-${f.key}">${esc(factorDesc(f))}</p>
-</div>`).join('');
-      $$('#sliders input').forEach(inp => inp.addEventListener('input', e => {
-        state.weights = fullWeights(state.weights);
-        state.weights[e.target.dataset.key] = Number(e.target.value);
-        formulaChanged(false);
-      }));
-    }
-    FACTORS.forEach(f => {
-      const inp = $('#w-' + f.key);
-      if (document.activeElement !== inp) inp.value = full[f.key];
-      inp.style.setProperty('--fill', (full[f.key] / 50 * 100) + '%');
-      const o = $('#o-' + f.key);
-      o.textContent = sh[f.key] + '%';
-      o.classList.toggle('zero', sh[f.key] === 0);
-      $('#h-' + f.key).textContent = factorDesc(f);
-    });
-    $('#recent').value = String(state.recentWeeks);
-    $$('input[name=scale]').forEach(r => { r.checked = r.value === state.scale; });
   }
 
   function colsHtml() {
@@ -561,9 +454,9 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
     const scaleTxt = state.scale === 'rank'
       ? 'Each factor is turned into a league rank, then spread from 0 (last) to 100 (first).'
       : 'Each factor is spread from 0 to 100 across the league: the lowest team gets 0, the highest gets 100.';
-    $('#m-note').textContent = `${scaleTxt} Those are weighted and added together for the power score. Ties on the score go to total points. Tiers break at the biggest gaps in score. Luck is actual wins minus expected wins, where expected wins are the all-play win rate times games played.` +
-      (off.length ? ` Not in the formula right now: ${off.map(f => f.label.toLowerCase()).join(', ')}.` : '') +
-      (isLeagueDefault() ? '' : ' You are viewing your own formula, not the league default.');
+    $('#m-note').textContent = `${scaleTxt} Those are weighted and added together for the power score. Ties on the score go to total points. Tiers break at the biggest gaps in score.` +
+      (off.length ? ` Shown on the page but left out of the score: ${off.map(f => f.label.toLowerCase()).join(', ')}. In testing against seasons built from this league's own scoring, each of them made the ranking worse at finding the best team, because they mostly measure luck (who you happened to play, and when) or repeat what points already show.` : '') +
+      ' Luck is actual wins minus expected wins, where expected wins are the all-play win rate times games played.';
   }
 
   function renderFoot() {
@@ -580,23 +473,10 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
 
   function renderAll(animate) {
     renderMast(); renderNumbers(); renderFormulaSummary();
-    if (state.panelOpen) renderControls();
     renderOrder(animate); renderCharts(); wireBumpOnce(); renderMethod(); renderFoot();
   }
   let bumpWired = false;
   function wireBumpOnce() { if (!bumpWired) { wireBump(); bumpWired = true; } }
-
-  let pending = null;
-  function formulaChanged(full) {
-    save();
-    if (pending) cancelAnimationFrame(pending);
-    pending = requestAnimationFrame(() => {
-      pending = null;
-      compute();
-      renderMast(); renderNumbers(); renderFormulaSummary(); renderControls();
-      renderOrder(true); renderCharts(); renderMethod();
-    });
-  }
 
   // ------------------------------------------------------------ boot
   async function getData() {
@@ -607,7 +487,7 @@ ${hl ? hist.map((rk, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(rk).toFixed(
   }
 
   async function boot() {
-    load();
+    try { localStorage.removeItem(STORE); } catch (e) { /* custom formulas from the old version are retired */ }
     let raw;
     try { raw = await getData(); }
     catch (e) {
